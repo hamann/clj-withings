@@ -44,11 +44,9 @@
                 weight-measure (first (filter #(= 1 (:type %)) measures))]
             (if weight-measure
               (let [weight-kg (calculate-weight (:value weight-measure) (:unit weight-measure))
-                    date (java.time.Instant/ofEpochSecond (:date latest-group))]
-                {:weight weight-kg
-                 :date date
-                 :formatted-weight (format "%.2f kg" weight-kg)
-                 :formatted-date (str date)})
+                    date-instant (java.time.Instant/ofEpochSecond (:date latest-group))]
+                {:weight (format "%.2f kg" weight-kg)
+                 :date (str date-instant)})
               {:error "No weight measurement found in latest group"})))))))
 
 (defn get-weight-with-auth

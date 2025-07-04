@@ -52,9 +52,7 @@
                     (do
                       (println "Error:" (:error result))
                       (System/exit 1))
-                    (do
-                      (println "Latest weight:" (:formatted-weight result))
-                      (println "Measured on:" (:formatted-date result)))))}
+                    (println result)))}
 
   test-token {:doc "Test current token validity"
               :task (let [config (config/read-config)]
