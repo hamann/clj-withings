@@ -37,8 +37,8 @@ Babashka scripts for fetching weight data from Withings API with OAuth2 authenti
 
 4. **Configure secrets**:
    ```bash
-   # Edit secrets.yaml with your credentials
-   # Include both Withings and intervals.icu configuration
+   # Copy example file and edit with your credentials
+   cp secrets.yaml.example secrets.yaml
    nano secrets.yaml
    
    # Encrypt
@@ -76,7 +76,7 @@ Babashka scripts for fetching weight data from Withings API with OAuth2 authenti
 2. **Register your application** at https://developer.withings.com/
    - Create a new application
    - Note down your Client ID and Client Secret
-   - Set redirect URI to `http://localhost:8080/callback`
+   - Set redirect URI to `http://localhost/callback`
 
 3. **Get intervals.icu API key**:
    - Go to your intervals.icu account settings
@@ -86,7 +86,8 @@ Babashka scripts for fetching weight data from Withings API with OAuth2 authenti
 
 4. **Configure secrets with SOPS** (recommended):
    ```bash
-   # Edit secrets.yaml with your credentials
+   # Copy example file and edit with your credentials
+   cp secrets.yaml.example secrets.yaml
    nano secrets.yaml
    
    # Initialize SOPS encryption (choose one method):
@@ -206,7 +207,8 @@ nix profile install .
 - `src/intervals/api.clj` - API integration for uploading wellness data
 
 **Configuration:**
-- `secrets.yaml` - Encrypted secrets file (SOPS) with Withings and intervals.icu credentials
+- `secrets.yaml.example` - Example configuration file with placeholder values
+- `secrets.yaml` - Encrypted secrets file (SOPS) with Withings and intervals.icu credentials (not in git)
 - `.sops.yaml` - SOPS configuration
 - `bb.edn` - Babashka task definitions including `weight` and `push-to-intervals`
 - `~/.withings-config.json` - OAuth configuration and tokens (auto-created)
