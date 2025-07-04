@@ -12,8 +12,8 @@
   [secrets-file]
   (try
     (let [result (process/shell {:out :string
-                                :err :string} 
-                               "sops" "-d" secrets-file)]
+                                 :err :string}
+                                "sops" "-d" secrets-file)]
       (if (zero? (:exit result))
         (yaml/parse-string (:out result))
         (throw (ex-info "SOPS decryption failed" {:error (:err result)}))))
@@ -25,8 +25,8 @@
   "Get Withings configuration from encrypted secrets"
   []
   (when (.exists (io/file secrets-file))
-    (when-let [secrets (decrypt-secrets secrets-file)]
-      (get secrets :withings))))
+    (some-> (decrypt-secrets secrets-file)
+            :withings)))
 
 (defn read-config
   "Read configuration from file"
@@ -51,24 +51,14 @@
 
 (defn get-credentials
   "Get credentials from command line args or SOPS secrets"
-  [opts]
-  (let [client-id (:client-id opts)
-        client-secret (:client-secret opts)
-        redirect-uri (:redirect-uri opts)
-        secrets (get-withings-secrets)]
-    (cond
-      ; Use provided command line args
-      (and client-id client-secret)
-      {:client-id client-id
-       :client-secret client-secret
-       :redirect-uri redirect-uri}
-      
-      ; Use SOPS secrets
-      (and secrets (get secrets :client_id) (get secrets :client_secret))
-      {:client-id (get secrets :client_id)
-       :client-secret (get secrets :client_secret)
-       :redirect-uri (or (get secrets :redirect_uri) redirect-uri)}
-      
-      ; Neither available
-      :else
-      nil)))
+  [{:keys [client-id client-secret redirect-uri]}]
+  (or
+   (when (and client-id client-secret)
+     {:client-id client-id
+      :client-secret client-secret
+      :redirect-uri redirect-uri})
+   (when-let [secrets (get-withings-secrets)]
+     (when (and (:client_id secrets) (:client_secret secrets))
+       {:client-id (:client_id secrets)
+        :client-secret (:client_secret secrets)
+        :redirect-uri (or (:redirect_uri secrets) redirect-uri)}))))

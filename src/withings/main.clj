@@ -37,8 +37,8 @@
         (println "Error:" (:error result))
         (System/exit 1))
       (do
-        (println "Latest weight:" (:formatted-weight result))
-        (println "Measured on:" (:formatted-date result))))))
+        (println "Latest weight:" (:weight result))
+        (println "Measured on:" (:date result))))))
 
 (defn test-token-command [_opts]
   (let [config (config/read-config)]
@@ -49,6 +49,15 @@
           (println "No valid token available")))
       (println "No configuration found. Run setup first."))))
 
+(defn print-secret-status
+  "Print status for a secret configuration"
+  [title secrets keys]
+  (println title)
+  (if secrets
+    (doseq [key keys]
+      (println "  Found" (name key) ":" (some? (get secrets key))))
+    (println "  Not found")))
+
 (defn check-sops-command [_opts]
   (let [withings-secrets (config/get-withings-secrets)
         intervals-secrets (intervals-config/get-intervals-secrets)]
@@ -56,20 +65,9 @@
       (do
         (println "SOPS configuration is working")
         (println)
-        (println "Withings secrets:")
-        (if withings-secrets
-          (do
-            (println "  Found client_id:" (boolean (:client_id withings-secrets)))
-            (println "  Found client_secret:" (boolean (:client_secret withings-secrets)))
-            (println "  Found redirect_uri:" (boolean (:redirect_uri withings-secrets))))
-          (println "  Not found"))
+        (print-secret-status "Withings secrets:" withings-secrets [:client_id :client_secret :redirect_uri])
         (println)
-        (println "Intervals.icu secrets:")
-        (if intervals-secrets
-          (do
-            (println "  Found api_key:" (boolean (:api_key intervals-secrets)))
-            (println "  Found athlete_id:" (boolean (:athlete_id intervals-secrets))))
-          (println "  Not found")))
+        (print-secret-status "Intervals.icu secrets:" intervals-secrets [:api_key :athlete_id]))
       (println "SOPS configuration not found or not working"))))
 
 (defn -main [& args]
@@ -81,14 +79,14 @@
     (if command
       (if-let [cmd-fn (get commands command)]
         (let [opts (cli/parse-opts rest-args {:spec {:client-id {:desc "Withings client ID"
-                                                               :alias :c}
-                                                   :client-secret {:desc "Withings client secret"
-                                                                  :alias :S}
-                                                   :redirect-uri {:desc "OAuth redirect URI"
-                                                                 :alias :r
-                                                                 :default "http://localhost/callback"}
-                                                   :help {:desc "Show help"
-                                                         :alias :h}}})]
+                                                                 :alias :c}
+                                                     :client-secret {:desc "Withings client secret"
+                                                                     :alias :S}
+                                                     :redirect-uri {:desc "OAuth redirect URI"
+                                                                    :alias :r
+                                                                    :default "http://localhost/callback"}
+                                                     :help {:desc "Show help"
+                                                            :alias :h}}})]
           (cmd-fn opts))
         (do
           (println "Unknown command:" command)

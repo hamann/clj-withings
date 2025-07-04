@@ -11,19 +11,19 @@
   [access-token & {:keys [meastype category limit lastupdate]
                    :or {meastype 1 category 1 limit 1}}]
   (let [params (cond-> {"action" "getmeas"
-                       "meastype" meastype
-                       "category" category
-                       "limit" limit}
+                        "meastype" meastype
+                        "category" category
+                        "limit" limit}
                  lastupdate (assoc "lastupdate" lastupdate))
         response (http/get withings-api-url
-                          {:headers {"Authorization" (str "Bearer " access-token)}
-                           :query-params params})]
-    (if (= 200 (:status response))
+                           {:headers {"Authorization" (str "Bearer " access-token)}
+                            :query-params params})]
+    (if-not (= 200 (:status response))
+      {:error (str "HTTP error: " (:status response) " " (:body response))}
       (let [data (json/parse-string (:body response) true)]
         (if (= 0 (:status data))
           (:body data)
-          {:error (str "API error: " (:error data))}))
-      {:error (str "HTTP error: " (:status response) " " (:body response))})))
+          {:error (str "API error: " (:error data))})))))
 
 (defn calculate-weight
   "Calculate actual weight from value and unit"
@@ -40,22 +40,21 @@
         (if (empty? measuregrps)
           {:error "No weight measurements found"}
           (let [latest-group (first measuregrps)
-                measures (:measures latest-group)
-                weight-measure (first (filter #(= 1 (:type %)) measures))]
-            (if weight-measure
-              (let [weight-kg (calculate-weight (:value weight-measure) (:unit weight-measure))
-                    date-instant (java.time.Instant/ofEpochSecond (:date latest-group))]
-                {:weight (format "%.2f kg" weight-kg)
-                 :date (str date-instant)})
-              {:error "No weight measurement found in latest group"})))))))
+                weight-measure (->> (:measures latest-group)
+                                    (filter #(= 1 (:type %)))
+                                    first)]
+            (if-not weight-measure
+              {:error "No weight measurement found in latest group"}
+              {:weight (format "%.2f kg" (calculate-weight (:value weight-measure) (:unit weight-measure)))
+               :date (str (java.time.Instant/ofEpochSecond (:date latest-group)))})))))))
 
 (defn get-weight-with-auth
   "Get weight with automatic token management"
   []
   (let [config (config/read-config)]
-    (if config
+    (if-not config
+      {:error "No configuration found. Please run setup first."}
       (let [token (oauth/get-valid-token config)]
-        (if token
-          (get-latest-weight (:access-token token))
-          {:error "No valid token available. Please run setup."}))
-      {:error "No configuration found. Please run setup first."})))
+        (if-not token
+          {:error "No valid token available. Please run setup."}
+          (get-latest-weight (:access-token token)))))))

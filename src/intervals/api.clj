@@ -11,11 +11,11 @@
   (let [url (str intervals-api-url "/athlete/" athlete-id "/wellness-bulk")
         payload [{:id date :weight weight-kg}]
         response (http/put url
-                          {:headers {"Content-Type" "application/json"}
-                           :basic-auth ["API_KEY" api-key]
-                           :body (json/generate-string payload)})]
+                           {:headers {"Content-Type" "application/json"}
+                            :basic-auth ["API_KEY" api-key]
+                            :body (json/generate-string payload)})]
     (if (= 200 (:status response))
-      {:success true :message "Weight uploaded successfully"}
+      {:message "Weight uploaded successfully"}
       {:error (str "HTTP error: " (:status response) " " (:body response))})))
 
 (defn post-weight-with-auth
