@@ -2,7 +2,8 @@
   (:require [babashka.cli :as cli]
             [withings.oauth :as oauth]
             [withings.api :as api]
-            [withings.config :as config]))
+            [withings.config :as config]
+            [intervals.config :as intervals-config]))
 
 (defn setup-command [opts]
   (if (:help opts)
@@ -49,13 +50,26 @@
       (println "No configuration found. Run setup first."))))
 
 (defn check-sops-command [_opts]
-  (let [secrets (config/get-withings-secrets)]
-    (if secrets
+  (let [withings-secrets (config/get-withings-secrets)
+        intervals-secrets (intervals-config/get-intervals-secrets)]
+    (if (or withings-secrets intervals-secrets)
       (do
         (println "SOPS configuration is working")
-        (println "Found client_id:" (boolean (:client_id secrets)))
-        (println "Found client_secret:" (boolean (:client_secret secrets)))
-        (println "Found redirect_uri:" (boolean (:redirect_uri secrets))))
+        (println)
+        (println "Withings secrets:")
+        (if withings-secrets
+          (do
+            (println "  Found client_id:" (boolean (:client_id withings-secrets)))
+            (println "  Found client_secret:" (boolean (:client_secret withings-secrets)))
+            (println "  Found redirect_uri:" (boolean (:redirect_uri withings-secrets))))
+          (println "  Not found"))
+        (println)
+        (println "Intervals.icu secrets:")
+        (if intervals-secrets
+          (do
+            (println "  Found api_key:" (boolean (:api_key intervals-secrets)))
+            (println "  Found athlete_id:" (boolean (:athlete_id intervals-secrets))))
+          (println "  Not found")))
       (println "SOPS configuration not found or not working"))))
 
 (defn -main [& args]
