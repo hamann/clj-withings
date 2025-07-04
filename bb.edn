@@ -6,7 +6,8 @@
  {:requires ([babashka.cli :as cli]
              [withings.oauth :as oauth]
              [withings.api :as api]
-             [withings.config :as config])
+             [withings.config :as config]
+             [intervals.api :as intervals-api])
 
   :init (do
           (def default-redirect-uri "http://localhost/callback"))
@@ -71,4 +72,65 @@
                           (println "Found client_id:" (boolean (:client_id secrets)))
                           (println "Found client_secret:" (boolean (:client_secret secrets)))
                           (println "Found redirect_uri:" (boolean (:redirect_uri secrets))))
-                        (println "SOPS configuration not found or not working")))}}}
+                        (println "SOPS configuration not found or not working")))}
+
+  push-to-intervals {:doc "Push weight to intervals.icu from stdin (accepts 'bb weight' output or 'WEIGHT UNIT [DATE]' format)"
+               :task (let [input (read-line)]
+                       (if input
+                         (let [trimmed-input (clojure.string/trim input)]
+                           (cond
+                             ;; Handle bb weight output format: {:weight 75.11 kg, :date 2025-07-01T10:13:53Z}
+                             (clojure.string/starts-with? trimmed-input "{:weight")
+                             (try
+                               (let [weight-match (re-find (re-pattern ":weight ([0-9.]+) kg") trimmed-input)
+                                     date-match (re-find (re-pattern ":date ([0-9T:-]+Z)") trimmed-input)]
+                                 (if (and weight-match date-match)
+                                   (let [weight-kg (Double/parseDouble (second weight-match))
+                                         date-instant (java.time.Instant/parse (second date-match))
+                                         date (.format (java.time.LocalDate/ofInstant date-instant (java.time.ZoneId/systemDefault))
+                                                      (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd"))]
+                                     (let [result (intervals-api/post-weight-with-auth weight-kg date)]
+                                       (if (:error result)
+                                         (do
+                                           (println "Error:" (:error result))
+                                           (System/exit 1))
+                                         (println (:message result)))))
+                                   (do
+                                     (println "Error: Could not parse bb weight output format")
+                                     (System/exit 1))))
+                               (catch Exception e
+                                 (println "Error parsing bb weight output:" (.getMessage e))
+                                 (System/exit 1)))
+                             
+                             ;; Handle manual input format: "WEIGHT UNIT [DATE]"
+                             :else
+                             (let [parts (clojure.string/split trimmed-input (re-pattern "\\s+"))]
+                               (if (>= (count parts) 2)
+                                 (let [weight-str (first parts)
+                                       unit (second parts)
+                                       date (if (>= (count parts) 3)
+                                             (nth parts 2)
+                                             (.format (java.time.LocalDate/now) 
+                                                     (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd")))]
+                                   (try
+                                     (let [weight-val (Double/parseDouble weight-str)
+                                           weight-kg (if (= unit "kg") weight-val (* weight-val 0.453592))]
+                                       (let [result (intervals-api/post-weight-with-auth weight-kg date)]
+                                         (if (:error result)
+                                           (do
+                                             (println "Error:" (:error result))
+                                             (System/exit 1))
+                                           (println (:message result)))))
+                                     (catch Exception e
+                                       (println "Error parsing weight:" (.getMessage e))
+                                       (System/exit 1))))
+                                 (do
+                                   (println "Usage: echo 'WEIGHT UNIT [DATE]' | bb push-to-intervals")
+                                   (println "       bb weight | bb push-to-intervals")
+                                   (println "Example: echo '75.1 kg' | bb push-to-intervals")
+                                   (println "Example: echo '165.5 lbs 2025-01-01' | bb push-to-intervals")
+                                   (println "Example: bb weight | bb push-to-intervals")
+                                   (System/exit 1))))))
+                         (do
+                           (println "No input provided")
+                           (System/exit 1))))}}}

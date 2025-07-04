@@ -1,0 +1,26 @@
+# Secrets and keys
+key.txt
+*.key
+secrets.yaml
+secrets.yaml.backup
+
+# OAuth tokens
+.withings-config.json
+
+# Nix
+result
+result-*
+
+# Direnv
+.direnv/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

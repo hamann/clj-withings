@@ -53,6 +53,7 @@
             echo "  bb weight         - Get current weight"
             echo "  bb check-sops     - Check SOPS configuration"
             echo "  bb test-token     - Test token validity"
+            echo "  bb push-weight    - Push weight to intervals.icu"
             echo
             echo "First time setup:"
             echo "  1. Add your credentials to secrets.yaml"
@@ -69,6 +70,8 @@ withings:
   client_id: "YOUR_CLIENT_ID_HERE"
   client_secret: "YOUR_CLIENT_SECRET_HERE"
   redirect_uri: "http://localhost:8080/callback"
+intervals:
+  api_key: "YOUR_INTERVALS_ICU_API_KEY_HERE"
 EOF
               echo "✅ Created secrets.yaml template"
               echo "   Edit it with your credentials, then run: sops -e -i secrets.yaml"
