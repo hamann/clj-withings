@@ -7,22 +7,25 @@
              [withings.oauth :as oauth]
              [withings.api :as api]
              [withings.config :as config]
-             [intervals.api :as intervals-api])
+             [intervals.api :as intervals-api]
+             [strava.oauth :as strava-oauth]
+             [strava.api :as strava-api]
+             [strava.config :as strava-config])
 
   :init (do
           (def default-redirect-uri "http://localhost/callback"))
 
   setup {:doc "Setup OAuth2 authentication"
          :task (let [opts (cli/parse-opts *command-line-args*
-                                         {:spec {:client-id {:desc "Withings client ID"
-                                                            :alias :c}
-                                                :client-secret {:desc "Withings client secret"
-                                                               :alias :S}
-                                                :redirect-uri {:desc "OAuth redirect URI"
-                                                              :alias :r
-                                                              :default default-redirect-uri}
-                                                :help {:desc "Show help"
-                                                      :alias :h}}})]
+                                          {:spec {:client-id {:desc "Withings client ID"
+                                                              :alias :c}
+                                                  :client-secret {:desc "Withings client secret"
+                                                                  :alias :S}
+                                                  :redirect-uri {:desc "OAuth redirect URI"
+                                                                 :alias :r
+                                                                 :default default-redirect-uri}
+                                                  :help {:desc "Show help"
+                                                         :alias :h}}})]
                  (if (:help opts)
                    (do
                      (println "Usage: bb setup [OPTIONS]")
@@ -75,65 +78,172 @@
                         (println "SOPS configuration not found or not working")))}
 
   push-to-intervals {:doc "Push weight to intervals.icu from stdin (accepts 'bb weight' output or 'WEIGHT UNIT [DATE]' format)"
-               :task (let [input (read-line)]
-                       (if input
-                         (let [trimmed-input (clojure.string/trim input)]
-                           (cond
+                     :task (let [input (read-line)]
+                             (if input
+                               (let [trimmed-input (clojure.string/trim input)]
+                                 (cond
                              ;; Handle bb weight output format: {:weight 75.11 kg, :date 2025-07-01T10:13:53Z}
-                             (clojure.string/starts-with? trimmed-input "{:weight")
-                             (try
-                               (let [weight-match (re-find (re-pattern ":weight ([0-9.]+) kg") trimmed-input)
-                                     date-match (re-find (re-pattern ":date ([0-9T:-]+Z)") trimmed-input)]
-                                 (if (and weight-match date-match)
-                                   (let [weight-kg (Double/parseDouble (second weight-match))
-                                         date-instant (java.time.Instant/parse (second date-match))
-                                         date (.format (java.time.LocalDate/ofInstant date-instant (java.time.ZoneId/systemDefault))
-                                                      (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd"))]
-                                     (let [result (intervals-api/post-weight-with-auth weight-kg date)]
-                                       (if (:error result)
+                                   (clojure.string/starts-with? trimmed-input "{:weight")
+                                   (try
+                                     (let [weight-match (re-find (re-pattern ":weight ([0-9.]+) kg") trimmed-input)
+                                           date-match (re-find (re-pattern ":date ([0-9T:-]+Z)") trimmed-input)]
+                                       (if (and weight-match date-match)
+                                         (let [weight-kg (Double/parseDouble (second weight-match))
+                                               date-instant (java.time.Instant/parse (second date-match))
+                                               date (.format (java.time.LocalDate/ofInstant date-instant (java.time.ZoneId/systemDefault))
+                                                             (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd"))]
+                                           (let [result (intervals-api/post-weight-with-auth weight-kg date)]
+                                             (if (:error result)
+                                               (do
+                                                 (println "Error:" (:error result))
+                                                 (System/exit 1))
+                                               (println (:message result)))))
                                          (do
-                                           (println "Error:" (:error result))
-                                           (System/exit 1))
-                                         (println (:message result)))))
-                                   (do
-                                     (println "Error: Could not parse bb weight output format")
-                                     (System/exit 1))))
-                               (catch Exception e
-                                 (println "Error parsing bb weight output:" (.getMessage e))
-                                 (System/exit 1)))
+                                           (println "Error: Could not parse bb weight output format")
+                                           (System/exit 1))))
+                                     (catch Exception e
+                                       (println "Error parsing bb weight output:" (.getMessage e))
+                                       (System/exit 1)))
 
                              ;; Handle manual input format: "WEIGHT UNIT [DATE]"
-                             :else
-                             (let [parts (clojure.string/split trimmed-input (re-pattern "\\s+"))]
-                               (if (>= (count parts) 2)
-                                 (let [weight-str (first parts)
-                                       unit (second parts)
-                                       date (if (>= (count parts) 3)
-                                             (nth parts 2)
-                                             (.format (java.time.LocalDate/now)
-                                                     (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd")))]
-                                   (try
-                                     (let [weight-val (Double/parseDouble weight-str)
-                                           weight-kg (if (= unit "kg") weight-val (* weight-val 0.453592))]
-                                       (let [result (intervals-api/post-weight-with-auth weight-kg date)]
-                                         (if (:error result)
-                                           (do
-                                             (println "Error:" (:error result))
-                                             (System/exit 1))
-                                           (println (:message result)))))
-                                     (catch Exception e
-                                       (println "Error parsing weight:" (.getMessage e))
-                                       (System/exit 1))))
-                                 (do
-                                   (println "Usage: echo 'WEIGHT UNIT [DATE]' | bb push-to-intervals")
-                                   (println "       bb weight | bb push-to-intervals")
-                                   (println "Example: echo '75.1 kg' | bb push-to-intervals")
-                                   (println "Example: echo '165.5 lbs 2025-01-01' | bb push-to-intervals")
-                                   (println "Example: bb weight | bb push-to-intervals")
-                                   (System/exit 1))))))
-                         (do
-                           (println "No input provided")
-                           (System/exit 1))))}
+                                   :else
+                                   (let [parts (clojure.string/split trimmed-input (re-pattern "\\s+"))]
+                                     (if (>= (count parts) 2)
+                                       (let [weight-str (first parts)
+                                             unit (second parts)
+                                             date (if (>= (count parts) 3)
+                                                    (nth parts 2)
+                                                    (.format (java.time.LocalDate/now)
+                                                             (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd")))]
+                                         (try
+                                           (let [weight-val (Double/parseDouble weight-str)
+                                                 weight-kg (if (= unit "kg") weight-val (* weight-val 0.453592))]
+                                             (let [result (intervals-api/post-weight-with-auth weight-kg date)]
+                                               (if (:error result)
+                                                 (do
+                                                   (println "Error:" (:error result))
+                                                   (System/exit 1))
+                                                 (println (:message result)))))
+                                           (catch Exception e
+                                             (println "Error parsing weight:" (.getMessage e))
+                                             (System/exit 1))))
+                                       (do
+                                         (println "Usage: echo 'WEIGHT UNIT [DATE]' | bb push-to-intervals")
+                                         (println "       bb weight | bb push-to-intervals")
+                                         (println "Example: echo '75.1 kg' | bb push-to-intervals")
+                                         (println "Example: echo '165.5 lbs 2025-01-01' | bb push-to-intervals")
+                                         (println "Example: bb weight | bb push-to-intervals")
+                                         (System/exit 1))))))
+                               (do
+                                 (println "No input provided")
+                                 (System/exit 1))))}
+
+  setup-strava {:doc "Setup Strava OAuth2 authentication"
+                :task (let [opts (cli/parse-opts *command-line-args*
+                                                 {:spec {:client-id {:desc "Strava client ID"
+                                                                     :alias :c}
+                                                         :client-secret {:desc "Strava client secret"
+                                                                         :alias :S}
+                                                         :redirect-uri {:desc "OAuth redirect URI"
+                                                                        :alias :r
+                                                                        :default default-redirect-uri}
+                                                         :help {:desc "Show help"
+                                                                :alias :h}}})]
+                        (if (:help opts)
+                          (do
+                            (println "Usage: bb setup-strava [OPTIONS]")
+                            (println)
+                            (println "Options:")
+                            (println "  -c, --client-id ID       Strava client ID")
+                            (println "  -S, --client-secret SEC  Strava client secret")
+                            (println "  -r, --redirect-uri URI   OAuth redirect URI (default: http://localhost/callback)")
+                            (println "  -h, --help               Show this help message")
+                            (println)
+                            (println "Examples:")
+                            (println "  bb setup-strava --client-id YOUR_ID --client-secret YOUR_SECRET")
+                            (println "  bb setup-strava          # Use SOPS secrets"))
+                          (if-let [creds (strava-config/get-strava-credentials opts)]
+                            (do
+                              (when-not (and (:client-id opts) (:client-secret opts))
+                                (println "Using credentials from SOPS secrets file"))
+                              (strava-oauth/setup-oauth (:client-id creds) (:client-secret creds) (:redirect-uri creds)))
+                            (do
+                              (println "Error: Client credentials required")
+                              (println "Either:")
+                              (println "  1. Provide --client-id and --client-secret")
+                              (println "  2. Configure secrets.yaml with SOPS and run: bb setup-strava")))))}
+
+  test-strava-token {:doc "Test current Strava token validity"
+                     :task (let [config (strava-config/read-strava-config)]
+                             (if config
+                               (let [token (strava-config/get-valid-token config)]
+                                 (if token
+                                   (println "Strava token is valid, expires at:" (java.time.Instant/ofEpochMilli (:expires-at token)))
+                                   (println "No valid Strava token available")))
+                               (println "No Strava configuration found. Run setup-strava first.")))}
+
+  check-strava-sops {:doc "Check Strava SOPS configuration"
+                     :task (let [secrets (strava-config/get-strava-secrets)]
+                             (if secrets
+                               (do
+                                 (println "Strava SOPS configuration is working")
+                                 (println "Found client_id:" (boolean (:client_id secrets)))
+                                 (println "Found client_secret:" (boolean (:client_secret secrets)))
+                                 (println "Found redirect_uri:" (boolean (:redirect_uri secrets))))
+                               (println "Strava SOPS configuration not found or not working")))}
+
+  push-to-strava {:doc "Push weight to Strava from stdin (accepts 'bb weight' output or 'WEIGHT UNIT' format)"
+                  :task (let [input (read-line)]
+                          (if input
+                            (let [trimmed-input (clojure.string/trim input)]
+                              (cond
+                                ;; Handle bb weight output format: {:weight "75.11 kg", :date "2025-07-01T10:13:53Z"}
+                                (clojure.string/starts-with? trimmed-input "{:weight")
+                                (try
+                                  (let [weight-match (re-find (re-pattern ":weight \"([0-9.]+) kg\"") trimmed-input)]
+                                    (if weight-match
+                                      (let [weight-kg (Double/parseDouble (second weight-match))
+                                            result (strava-api/update-weight-with-auth weight-kg)]
+                                        (if (:error result)
+                                          (do
+                                            (println "Error:" (:error result))
+                                            (System/exit 1))
+                                          (println (:message result))))
+                                      (do
+                                        (println "Error: Could not parse bb weight output format")
+                                        (System/exit 1))))
+                                  (catch Exception e
+                                    (println "Error parsing bb weight output:" (.getMessage e))
+                                    (System/exit 1)))
+
+                                ;; Handle manual input format: "WEIGHT UNIT"
+                                :else
+                                (let [parts (clojure.string/split trimmed-input (re-pattern "\\s+"))]
+                                  (if (>= (count parts) 2)
+                                    (let [weight-str (first parts)
+                                          unit (second parts)]
+                                      (try
+                                        (let [weight-val (Double/parseDouble weight-str)
+                                              weight-kg (if (= unit "kg") weight-val (* weight-val 0.453592))
+                                              result (strava-api/update-weight-with-auth weight-kg)]
+                                          (if (:error result)
+                                            (do
+                                              (println "Error:" (:error result))
+                                              (System/exit 1))
+                                            (println (:message result))))
+                                        (catch Exception e
+                                          (println "Error parsing weight:" (.getMessage e))
+                                          (System/exit 1))))
+                                    (do
+                                      (println "Usage: echo 'WEIGHT UNIT' | bb push-to-strava")
+                                      (println "       bb weight | bb push-to-strava")
+                                      (println "Example: echo '75.1 kg' | bb push-to-strava")
+                                      (println "Example: echo '165.5 lbs' | bb push-to-strava")
+                                      (println "Example: bb weight | bb push-to-strava")
+                                      (System/exit 1))))))
+                            (do
+                              (println "No input provided")
+                              (System/exit 1))))}
 
   nrepl {:doc "Start nREPL server on port 7888"
          :requires ([babashka.nrepl.server :as nrepl])

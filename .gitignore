@@ -25,3 +25,6 @@ result-*
 .DS_Store
 Thumbs.db
 .clj-kondo
+.nrepl-port
+.claude
+.lsp
