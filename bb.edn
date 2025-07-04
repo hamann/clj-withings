@@ -101,7 +101,7 @@
                                (catch Exception e
                                  (println "Error parsing bb weight output:" (.getMessage e))
                                  (System/exit 1)))
-                             
+
                              ;; Handle manual input format: "WEIGHT UNIT [DATE]"
                              :else
                              (let [parts (clojure.string/split trimmed-input (re-pattern "\\s+"))]
@@ -110,7 +110,7 @@
                                        unit (second parts)
                                        date (if (>= (count parts) 3)
                                              (nth parts 2)
-                                             (.format (java.time.LocalDate/now) 
+                                             (.format (java.time.LocalDate/now)
                                                      (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd")))]
                                    (try
                                      (let [weight-val (Double/parseDouble weight-str)

@@ -122,14 +122,7 @@ Babashka scripts for fetching weight data from Withings API with OAuth2 authenti
 ### Get Current Weight
 
 ```bash
-# With Nix development shell
-get-weight
-
-# Or directly with Babashka
 bb weight
-
-# Or provide token directly
-bb get-weight-oauth.clj --access-token YOUR_TOKEN
 ```
 
 ### Upload to intervals.icu
@@ -149,30 +142,14 @@ echo "75.1 kg $(date '+%Y-%m-%d')" | bb push-to-intervals
 ### OAuth Management
 
 ```bash
-# With Nix development shell
-setup-oauth
-
-# Or directly with Babashka
-bb oauth.clj --setup
-
-# Setup OAuth (with credentials)
-bb oauth.clj --setup --client-id YOUR_ID --client-secret YOUR_SECRET
-
-# Test current token
-bb oauth.clj --test-token
-
-# Get help
-bb oauth.clj --help
+bb setup
 ```
 
 ### SOPS Management
 
 ```bash
 # Check if SOPS is available
-check-sops         # or: bb sops-helper.clj check
-
-# Decrypt and show secrets (redacted)
-decrypt-secrets    # or: bb sops-helper.clj decrypt
+bb check-sops
 
 # Edit encrypted secrets
 sops secrets.yaml
@@ -183,10 +160,6 @@ sops secrets.yaml
 ```bash
 # Enter development shell
 nix develop
-
-# Run without entering shell
-nix run .#get-weight
-nix run .#oauth -- --help
 
 # Build package
 nix build
