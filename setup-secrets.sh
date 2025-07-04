@@ -55,8 +55,8 @@ if bb sops-helper.clj check; then
     echo "✅ SOPS setup complete!"
     echo
     echo "Next steps:"
-    echo "1. Run: bb oauth.clj --setup"
-    echo "2. Run: bb get-weight-oauth.clj"
+    echo "1. Run: bb setup"
+    echo "2. Run: bb weight"
 else
     echo "❌ Decryption test failed"
     exit 1

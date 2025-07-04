@@ -1,1 +1,76 @@
-{:paths ["src"] }
+{:paths ["src"]
+ :deps {cheshire/cheshire {:mvn/version "5.12.0"}
+        clj-commons/clj-yaml {:mvn/version "1.0.27"}}
+
+ :tasks
+ {:requires ([babashka.cli :as cli]
+             [withings.oauth :as oauth]
+             [withings.api :as api]
+             [withings.config :as config])
+
+  :init (do
+          (def default-redirect-uri "http://localhost/callback"))
+
+  setup {:doc "Setup OAuth2 authentication"
+         :task (let [opts (cli/parse-opts *command-line-args*
+                                         {:spec {:client-id {:desc "Withings client ID"
+                                                            :alias :c}
+                                                :client-secret {:desc "Withings client secret"
+                                                               :alias :S}
+                                                :redirect-uri {:desc "OAuth redirect URI"
+                                                              :alias :r
+                                                              :default default-redirect-uri}
+                                                :help {:desc "Show help"
+                                                      :alias :h}}})]
+                 (if (:help opts)
+                   (do
+                     (println "Usage: bb setup [OPTIONS]")
+                     (println)
+                     (println "Options:")
+                     (println "  -c, --client-id ID       Withings client ID")
+                     (println "  -S, --client-secret SEC  Withings client secret")
+                     (println "  -r, --redirect-uri URI   OAuth redirect URI (default: http://localhost/callback)")
+                     (println "  -h, --help               Show this help message")
+                     (println)
+                     (println "Examples:")
+                     (println "  bb setup --client-id YOUR_ID --client-secret YOUR_SECRET")
+                     (println "  bb setup                 # Use SOPS secrets"))
+                   (if-let [creds (config/get-credentials opts)]
+                     (do
+                       (when-not (and (:client-id opts) (:client-secret opts))
+                         (println "Using credentials from SOPS secrets file"))
+                       (oauth/setup-oauth (:client-id creds) (:client-secret creds) (:redirect-uri creds)))
+                     (do
+                       (println "Error: Client credentials required")
+                       (println "Either:")
+                       (println "  1. Provide --client-id and --client-secret")
+                       (println "  2. Configure secrets.yaml with SOPS and run: bb setup")))))}
+
+  weight {:doc "Get current weight"
+          :task (let [result (api/get-weight-with-auth)]
+                  (if (:error result)
+                    (do
+                      (println "Error:" (:error result))
+                      (System/exit 1))
+                    (do
+                      (println "Latest weight:" (:formatted-weight result))
+                      (println "Measured on:" (:formatted-date result)))))}
+
+  test-token {:doc "Test current token validity"
+              :task (let [config (config/read-config)]
+                      (if config
+                        (let [token (oauth/get-valid-token config)]
+                          (if token
+                            (println "Token is valid, expires at:" (java.time.Instant/ofEpochMilli (:expires-at token)))
+                            (println "No valid token available")))
+                        (println "No configuration found. Run setup first.")))}
+
+  check-sops {:doc "Check SOPS configuration"
+              :task (let [secrets (config/get-withings-secrets)]
+                      (if secrets
+                        (do
+                          (println "SOPS configuration is working")
+                          (println "Found client_id:" (boolean (:client_id secrets)))
+                          (println "Found client_secret:" (boolean (:client_secret secrets)))
+                          (println "Found redirect_uri:" (boolean (:redirect_uri secrets))))
+                        (println "SOPS configuration not found or not working")))}}}
