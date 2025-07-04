@@ -1,0 +1,14 @@
+keys:
+  - &hamann age19ftxf5pwxqxjw74mmnyacxtvmgetc3rvnqv0zwy2w6thdnhj3vaqqxyvwz
+
+creation_rules:
+  - path_regex: secrets\.yaml$
+    key_groups:
+      - age:
+        - *hamann
+
+    # Add your encryption key here - example options:
+    # pgp: 'YOUR_PGP_FINGERPRINT'
+    # age: 'YOUR_AGE_PUBLIC_KEY'
+    # kms: 'arn:aws:kms:region:account:key/key-id'
+    # gcp_kms: 'projects/PROJECT_ID/locations/LOCATION/keyRings/RING_NAME/cryptoKeys/KEY_NAME'
