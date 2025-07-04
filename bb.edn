@@ -133,4 +133,13 @@
                                    (System/exit 1))))))
                          (do
                            (println "No input provided")
-                           (System/exit 1))))}}}
+                           (System/exit 1))))}
+
+  nrepl {:doc "Start nREPL server on port 7888"
+         :requires ([babashka.nrepl.server :as nrepl])
+         :task (do
+                 (println "Starting nREPL server on port 7888...")
+                 (nrepl/start-server! {:host "0.0.0.0" :port 7888})
+                 (println "nREPL server started on port 7888")
+                 (println "Connect with: (cider-connect \"localhost\" 7888)")
+                 (deref (promise)))}}}
