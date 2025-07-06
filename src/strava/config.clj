@@ -71,27 +71,30 @@
 (defn token-expired?
   "Check if token is expired (with buffer)"
   [token-data]
-  (let [expires-at (:expires-at token-data)
-        now (System/currentTimeMillis)]
-    (< expires-at (+ now token-buffer-ms))))
+  (if (and token-data (:expires-at token-data))
+    (let [expires-at (:expires-at token-data)
+          now (System/currentTimeMillis)]
+      (< expires-at (+ now token-buffer-ms)))
+    true)) ; If no token or no expiry, consider it expired
 
 (defn get-valid-token
   "Get a valid access token, refreshing if necessary"
   [config]
   (let [token-data (:token config)]
-    (if (token-expired? token-data)
-      (if-let [secrets (get-strava-secrets)]
-        (let [refreshed (refresh-access-token
-                         (:client_id secrets)
-                         (:client_secret secrets)
-                         (:refresh_token token-data))]
-          (if (:error refreshed)
-            nil
-            (do
-              (update-token refreshed)
-              refreshed)))
-        nil)
-      token-data)))
+    (if (and token-data (not (token-expired? token-data)))
+      token-data
+      ;; Token is expired or doesn't exist, try to refresh
+      (when-let [refresh-token (:refresh_token token-data)]
+        (when-let [secrets (get-strava-secrets)]
+          (let [refreshed (refresh-access-token
+                           (:client_id secrets)
+                           (:client_secret secrets)
+                           refresh-token)]
+            (if (:error refreshed)
+              nil
+              (do
+                (update-token refreshed)
+                refreshed))))))))
 
 (defn get-valid-strava-token
   "Get a valid Strava token, refreshing if necessary"
