@@ -11,6 +11,8 @@
              [strava.oauth :as strava-oauth]
              [strava.api :as strava-api]
              [strava.config :as strava-config]
+             [trainerroad.api :as trainerroad-api]
+             [trainerroad.config :as trainerroad-config]
              [weight.parser :as weight-parser])
 
   :init (do
@@ -189,6 +191,43 @@
                             (do
                               (println "No input provided")
                               (System/exit 1))))}
+
+  check-trainerroad-sops {:doc "Check TrainerRoad SOPS configuration"
+                          :task (let [secrets (trainerroad-config/get-trainerroad-secrets)]
+                                  (if secrets
+                                    (do
+                                      (println "TrainerRoad SOPS configuration is working")
+                                      (println "Found username:" (boolean (:username secrets)))
+                                      (println "Found password:" (boolean (:password secrets))))
+                                    (println "TrainerRoad SOPS configuration not found or not working")))}
+
+  push-to-trainerroad {:doc "Push weight to TrainerRoad from stdin (accepts 'bb weight' output or 'WEIGHT UNIT' format)"
+                       :task (let [input (read-line)]
+                               (if input
+                                 (try
+                                   (let [parsed (weight-parser/parse-weight-input input)
+                                         trainerroad-data (weight-parser/for-trainerroad parsed)]
+                                     (if (:error trainerroad-data)
+                                       (do
+                                         (println "Error:" (:error trainerroad-data))
+                                         (when-not (:weight-kg parsed)
+                                           (doseq [line (weight-parser/usage-message-trainerroad)]
+                                             (println line)))
+                                         (System/exit 1))
+                                       (let [result (trainerroad-api/update-weight-with-auth (:weight-kg trainerroad-data))]
+                                         (if (:error result)
+                                           (do
+                                             (println "Error:" (:error result))
+                                             (System/exit 1))
+                                           (println (:message result))))))
+                                   (catch Exception e
+                                     (println "Error:" (.getMessage e))
+                                     (doseq [line (weight-parser/usage-message-trainerroad)]
+                                       (println line))
+                                     (System/exit 1)))
+                                 (do
+                                   (println "No input provided")
+                                   (System/exit 1))))}
 
   test {:doc "Run tests"
         :requires ([clojure.test :as t] [weight.parser-test])
