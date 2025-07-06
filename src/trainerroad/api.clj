@@ -45,54 +45,33 @@
       (if-not (:success auth-result)
         {:success false :error (str "Failed to authenticate: " (:error auth-result))}
 
-        (let [member-id (:member-id auth-result)
-
-              ;; Try common weight update endpoints
-              endpoints-to-try [{:url (str trainerroad-api-url "/members/" member-id "/profile")
-                                 :method :put
-                                 :data {:weight weight-kg}}
-                                {:url (str trainerroad-api-url "/members/" member-id "/weight")
-                                 :method :post
-                                 :data {:weight weight-kg}}
-                                {:url (str trainerroad-api-url "/profile")
-                                 :method :put
-                                 :data {:weight weight-kg}}
-                                {:url (str trainerroad-api-url "/athletes/" member-id "/measurements")
-                                 :method :post
-                                 :data {:weight weight-kg}}
-                                {:url (str trainerroad-api-url "/members/" member-id)
-                                 :method :put
-                                 :data {:weight weight-kg}}]
-
-              ;; Function to try a single endpoint
-              try-endpoint (fn [{:keys [url method data]}]
-                             (try
-                               (let [response (case method
-                                                :put (http/put url {:headers headers
-                                                                    :body (json/generate-string data)
-                                                                    :throw false})
-                                                :post (http/post url {:headers headers
-                                                                      :body (json/generate-string data)
-                                                                      :throw false}))]
-                                 (if (<= 200 (:status response) 299)
-                                   {:success true
-                                    :message (str "Weight updated successfully using " method " " url)
-                                    :response-status (:status response)}
-                                   {:success false
-                                    :error (str method " " url " returned " (:status response))}))
-                               (catch Exception e
-                                 {:success false
-                                  :error (str method " " url " threw " (.getMessage e))})))
-
-              ;; Try endpoints until one succeeds
-              results (map try-endpoint endpoints-to-try)
-              success-result (first (filter :success results))]
-
-          (if success-result
-            success-result
+        (try
+          ;; Get current member profile
+          (let [profile-response (http/get (str trainerroad-api-url "/members")
+                                           {:headers headers :throw false})]
+            (if (<= 200 (:status profile-response) 299)
+              ;; Update the weight in the profile and send it back
+              (let [current-profile (json/parse-string (:body profile-response) true)
+                    updated-profile (assoc current-profile :WeightKG weight-kg)
+                    update-response (http/put (str trainerroad-api-url "/members")
+                                              {:headers headers
+                                               :body (json/generate-string updated-profile)
+                                               :throw false})]
+                (if (<= 200 (:status update-response) 299)
+                  {:success true
+                   :message (str "Weight updated successfully to " weight-kg " kg")
+                   :previous-weight (:WeightKG current-profile)
+                   :new-weight weight-kg
+                   :response-status (:status update-response)}
+                  {:success false
+                   :error (str "Failed to update weight: HTTP " (:status update-response))
+                   :response-body (:body update-response)}))
+              {:success false
+               :error (str "Failed to fetch current profile: HTTP " (:status profile-response))
+               :response-body (:body profile-response)}))
+          (catch Exception e
             {:success false
-             :error (str "No working endpoint found. Errors: "
-                         (clojure.string/join "; " (map :error results)))}))))
+             :error (str "Weight update error: " (.getMessage e))}))))
 
     (catch Exception e
       {:success false :error (str "Weight update error: " (.getMessage e))})))
