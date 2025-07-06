@@ -6,8 +6,9 @@
 
 (def trainerroad-api-url "https://api.trainerroad.com/api")
 
-(defn authenticate-and-get-member-id [username password]
+(defn authenticate-and-get-member-id
   "Authenticate with TrainerRoad and get member ID"
+  [username password]
   (try
     (let [auth-str (str username ":" password)
           encoded-auth (.encodeToString (java.util.Base64/getEncoder) (.getBytes auth-str "UTF-8"))
@@ -24,8 +25,9 @@
     (catch Exception e
       {:success false :error (str "Authentication error: " (.getMessage e))})))
 
-(defn get-authenticated-session [credentials]
+(defn get-authenticated-session
   "Get an authenticated session for API calls"
+  [credentials]
   (let [{:keys [username password]} credentials
         auth-str (str username ":" password)
         encoded-auth (.encodeToString (java.util.Base64/getEncoder) (.getBytes auth-str "UTF-8"))]
@@ -33,8 +35,9 @@
      "Authorization" (str "Basic " encoded-auth)
      "Content-Type" "application/json"}))
 
-(defn update-athlete-weight [username password weight-kg]
+(defn update-athlete-weight
   "Update athlete weight in TrainerRoad profile"
+  [username password weight-kg]
   (try
     (let [credentials {:username username :password password}
           headers (get-authenticated-session credentials)
@@ -76,8 +79,9 @@
     (catch Exception e
       {:success false :error (str "Weight update error: " (.getMessage e))})))
 
-(defn update-weight-with-auth [weight-kg]
+(defn update-weight-with-auth
   "Update weight using stored credentials from SOPS"
+  [weight-kg]
   (if-let [credentials (config/get-trainerroad-credentials)]
     (let [{:keys [username password]} credentials]
       (if (and username password)
