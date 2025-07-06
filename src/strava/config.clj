@@ -50,8 +50,11 @@
   "Save OAuth token to config file"
   [token-data]
   (let [existing-config (or (read-strava-config) {})
+        existing-token (:token existing-config)
         updated-config (assoc existing-config :token token-data)]
-    (write-strava-config updated-config)))
+    ;; Only write config if the token data has actually changed
+    (when (not= existing-token token-data)
+      (write-strava-config updated-config))))
 
 (defn update-token
   "Update existing token in config"
