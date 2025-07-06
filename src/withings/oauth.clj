@@ -68,7 +68,8 @@
      (+ (System/currentTimeMillis) token-buffer-ms)))
 
 (defn get-valid-token
-  "Get a valid access token, refreshing if necessary"
+  "Get a valid access token, refreshing if necessary
+   Used in bb.edn: test-token task"
   [config]
   (let [token-data (:token config)]
     (if (and token-data (not (token-expired? token-data)))
@@ -88,7 +89,8 @@
               refreshed)))))))
 
 (defn setup-oauth
-  "Interactive OAuth setup"
+  "Interactive OAuth setup
+   Used in bb.edn: setup task"
   [client-id client-secret redirect-uri]
   (let [auth-url (generate-auth-url client-id redirect-uri)]
     (println "Please visit the following URL to authorize the application:")

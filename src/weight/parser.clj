@@ -107,6 +107,7 @@
 ;; Main parsing dispatcher
 (defn parse-weight-input
   "Parse weight input from stdin, handling both bb weight output and manual input.
+   Used in bb.edn: push-to-intervals and push-to-strava tasks
    
    Returns: {:weight-kg Double, :date String} or {:error String}"
   [input]
@@ -132,7 +133,8 @@
 
 ;; Result processors for different services
 (defn for-intervals
-  "Process parsed weight data for intervals.icu (requires date)"
+  "Process parsed weight data for intervals.icu (requires date)
+   Used in bb.edn: push-to-intervals task"
   [parsed-data]
   (if (:error parsed-data)
     parsed-data
@@ -142,7 +144,8 @@
       {:error "Date is required for intervals.icu but was not provided"})))
 
 (defn for-strava
-  "Process parsed weight data for Strava (weight only)"
+  "Process parsed weight data for Strava (weight only)
+   Used in bb.edn: push-to-strava task"
   [parsed-data]
   (if (:error parsed-data)
     parsed-data
@@ -150,7 +153,8 @@
 
 ;; Error message generators
 (defn usage-message-intervals
-  "Generate usage message for intervals push command"
+  "Generate usage message for intervals push command
+   Used in bb.edn: push-to-intervals task (error handling)"
   []
   ["Usage: echo 'WEIGHT UNIT [DATE]' | bb push-to-intervals"
    "       bb weight | bb push-to-intervals"
@@ -159,7 +163,8 @@
    "Example: bb weight | bb push-to-intervals"])
 
 (defn usage-message-strava
-  "Generate usage message for strava push command"
+  "Generate usage message for strava push command
+   Used in bb.edn: push-to-strava task (error handling)"
   []
   ["Usage: echo 'WEIGHT UNIT' | bb push-to-strava"
    "       bb weight | bb push-to-strava"

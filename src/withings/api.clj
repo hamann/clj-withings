@@ -49,7 +49,8 @@
                :date (str (java.time.Instant/ofEpochSecond (:date latest-group)))})))))))
 
 (defn get-weight-with-auth
-  "Get weight with automatic token management"
+  "Get weight with automatic token management
+   Used in bb.edn: weight task"
   []
   (let [config (config/read-config)]
     (if-not config

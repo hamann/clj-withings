@@ -9,13 +9,15 @@
 (def token-buffer-ms (* 5 60 1000)) ; 5 minutes buffer
 
 (defn get-strava-secrets
-  "Get Strava secrets from encrypted SOPS file"
+  "Get Strava secrets from encrypted SOPS file
+   Used in bb.edn: check-strava-sops task"
   []
   (some-> (withings-config/decrypt-secrets withings-config/secrets-file)
           :strava))
 
 (defn read-strava-config
-  "Read Strava configuration from file"
+  "Read Strava configuration from file
+   Used in bb.edn: test-strava-token task"
   []
   (when (.exists (io/file strava-config-file))
     (try
@@ -78,7 +80,8 @@
     true)) ; If no token or no expiry, consider it expired
 
 (defn get-valid-token
-  "Get a valid access token, refreshing if necessary"
+  "Get a valid access token, refreshing if necessary
+   Used in bb.edn: test-strava-token task"
   [config]
   (let [token-data (:token config)]
     (if (and token-data (not (token-expired? token-data)))
@@ -103,7 +106,8 @@
     (get-valid-token config)))
 
 (defn get-strava-credentials
-  "Get Strava credentials from command line args or SOPS secrets"
+  "Get Strava credentials from command line args or SOPS secrets
+   Used in bb.edn: setup-strava task"
   [{:keys [client-id client-secret redirect-uri]}]
   (or
    (when (and client-id client-secret)

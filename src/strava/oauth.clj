@@ -28,7 +28,8 @@
     (config/parse-token-response response)))
 
 (defn setup-oauth
-  "Setup OAuth flow for Strava"
+  "Setup OAuth flow for Strava
+   Used in bb.edn: setup-strava task"
   [client-id client-secret redirect-uri]
   (let [auth-url (generate-auth-url client-id redirect-uri)]
     (println "1. Open this URL in your browser:")

@@ -22,14 +22,16 @@
       nil)))
 
 (defn get-withings-secrets
-  "Get Withings configuration from encrypted secrets"
+  "Get Withings configuration from encrypted secrets
+   Used in bb.edn: check-sops task"
   []
   (when (.exists (io/file secrets-file))
     (some-> (decrypt-secrets secrets-file)
             :withings)))
 
 (defn read-config
-  "Read configuration from file"
+  "Read configuration from file
+   Used in bb.edn: test-token task"
   []
   (when (.exists (io/file config-file))
     (try
@@ -50,7 +52,8 @@
       (println "Error saving config:" (.getMessage e)))))
 
 (defn get-credentials
-  "Get credentials from command line args or SOPS secrets"
+  "Get credentials from command line args or SOPS secrets
+   Used in bb.edn: setup task"
   [{:keys [client-id client-secret redirect-uri]}]
   (or
    (when (and client-id client-secret)

@@ -17,7 +17,8 @@
       {:error (str "HTTP error: " (:status response) " " (:body response))})))
 
 (defn update-weight-with-auth
-  "Update weight using configured OAuth token"
+  "Update weight using configured OAuth token
+   Used in bb.edn: push-to-strava task"
   [weight-kg]
   (if-let [token (config/get-valid-strava-token)]
     (update-athlete-weight (:access_token token) weight-kg)

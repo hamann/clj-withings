@@ -19,7 +19,8 @@
       {:error (str "HTTP error: " (:status response) " " (:body response))})))
 
 (defn post-weight-with-auth
-  "Post weight data using configured API key"
+  "Post weight data using configured API key
+   Used in bb.edn: push-to-intervals task"
   [weight-kg date]
   (let [api-key (config/get-intervals-api-key)
         athlete-id (config/get-intervals-athlete-id)]
