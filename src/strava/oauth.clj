@@ -1,6 +1,5 @@
 (ns strava.oauth
   (:require [babashka.http-client :as http]
-            [cheshire.core :as json]
             [clojure.string :as str]
             [strava.config :as config]))
 

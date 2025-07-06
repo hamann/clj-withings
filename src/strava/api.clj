@@ -1,6 +1,5 @@
 (ns strava.api
   (:require [babashka.http-client :as http]
-            [cheshire.core :as json]
             [strava.config :as config]))
 
 (def strava-api-url "https://www.strava.com/api/v3")
