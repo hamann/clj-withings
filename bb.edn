@@ -4,6 +4,7 @@
 
  :tasks
  {:requires ([babashka.cli :as cli]
+             [babashka.process]
              [withings.oauth :as oauth]
              [withings.api :as api]
              [withings.config :as config]
@@ -228,6 +229,9 @@
                                  (do
                                    (println "No input provided")
                                    (System/exit 1))))}
+
+  lint {:doc "Run clj-kondo linting on all source files"
+        :task (babashka.process/shell "clj-kondo" "--lint" "src" "test")}
 
   test {:doc "Run tests"
         :requires ([clojure.test :as t] [weight.parser-test])

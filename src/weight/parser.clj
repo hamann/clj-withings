@@ -99,7 +99,7 @@
                 weight-kg (convert-to-kg weight-val unit)]
             {:weight-kg weight-kg
              :date date-str}))))
-    (catch NumberFormatException e
+    (catch NumberFormatException _
       {:error (str "Invalid weight value: " (first (str/split input #"\s+")))})
     (catch Exception e
       {:error (.getMessage e)})))
