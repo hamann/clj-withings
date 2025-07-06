@@ -4,9 +4,17 @@
             [withings.config :as withings-config]
             [babashka.http-client :as http]))
 
-(def strava-config-file (str (System/getProperty "user.home") "/.strava-config.json"))
+(def config-dir (str (System/getProperty "user.home") "/.config/clj-withings"))
+(def strava-config-file (str config-dir "/strava.json"))
 (def strava-token-url "https://www.strava.com/oauth/token")
 (def token-buffer-ms (* 5 60 1000)) ; 5 minutes buffer
+
+(defn ensure-config-dir
+  "Ensure the configuration directory exists"
+  []
+  (let [dir (java.io.File. config-dir)]
+    (when-not (.exists dir)
+      (.mkdirs dir))))
 
 (defn get-strava-secrets
   "Get Strava secrets from encrypted SOPS file
@@ -32,6 +40,7 @@
   "Write Strava configuration to file"
   [config]
   (try
+    (ensure-config-dir)
     (spit strava-config-file (json/generate-string config {:pretty true}))
     (println "Strava configuration saved to" strava-config-file)
     (catch Exception e

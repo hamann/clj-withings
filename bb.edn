@@ -196,6 +196,9 @@
                 (when (or (> (:fail results) 0) (> (:error results) 0))
                   (System/exit 1)))}
 
+  migrate-config {:doc "Migrate config files from ~/.withings-config.json and ~/.strava-config.json to ~/.config/clj-withings/"
+                  :task (config/migrate-old-config)}
+
   nrepl {:doc "Start nREPL server on port 7888"
          :requires ([babashka.nrepl.server :as nrepl])
          :task (do
