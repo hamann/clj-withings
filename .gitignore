@@ -3,6 +3,7 @@ key.txt
 *.key
 secrets.yaml
 secrets.yaml.backup
+.sops.yaml
 
 # OAuth tokens
 .withings-config.json
