@@ -1,6 +1,6 @@
 # Withings Weight Tracker
 
-Babashka scripts for fetching weight data from Withings API with OAuth2 authentication and uploading to intervals.icu.
+Babashka scripts for fetching weight data from Withings API with OAuth2 authentication and uploading to intervals.icu and Strava.
 
 ## Setup
 
@@ -47,12 +47,16 @@ Babashka scripts for fetching weight data from Withings API with OAuth2 authenti
 
 5. **Setup OAuth**:
    ```bash
-   setup-oauth    # or: bb oauth.clj --setup
+   # Setup Withings OAuth
+   bb setup
+   
+   # Setup Strava OAuth
+   bb setup-strava
    ```
 
 6. **Get your weight**:
    ```bash
-   get-weight     # or: bb weight
+   bb weight
    ```
 
 7. **Upload to intervals.icu**:
@@ -84,7 +88,13 @@ Babashka scripts for fetching weight data from Withings API with OAuth2 authenti
    - Generate an API key with wellness data write permissions
    - Note your athlete ID from your profile URL
 
-4. **Configure secrets with SOPS** (recommended):
+4. **Get Strava API credentials**:
+   - Register your application at https://developers.strava.com/
+   - Create a new API application
+   - Note down your Client ID and Client Secret
+   - Set authorization callback domain to `localhost`
+
+5. **Configure secrets with SOPS** (recommended):
    ```bash
    # Copy example file and edit with your credentials
    cp secrets.yaml.example secrets.yaml
@@ -103,19 +113,26 @@ Babashka scripts for fetching weight data from Withings API with OAuth2 authenti
    sops -e -i secrets.yaml
    ```
 
-5. **Configure OAuth2 authentication**:
+6. **Configure OAuth2 authentication**:
    ```bash
-   # Using SOPS secrets (recommended)
-   bb oauth.clj --setup
+   # Setup Withings OAuth using SOPS secrets (recommended)
+   bb setup
    
-   # Or provide credentials directly
-   bb oauth.clj --setup --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
+   # Or provide Withings credentials directly
+   bb setup --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
+   
+   # Setup Strava OAuth using SOPS secrets (recommended)
+   bb setup-strava
+   
+   # Or provide Strava credentials directly
+   bb setup-strava --client-id YOUR_STRAVA_CLIENT_ID --client-secret YOUR_STRAVA_CLIENT_SECRET
    ```
    
    This will:
-   - Open a browser for authorization
+   - Open a browser for authorization (for each service)
    - Prompt you to enter the authorization code
-   - Save tokens to `~/.withings-config.json`
+   - Save Withings tokens to `~/.config/clj-withings/withings.json`
+   - Save Strava tokens to `~/.config/clj-withings/strava.json`
 
 ## Usage
 
@@ -139,10 +156,28 @@ echo "165.5 lbs 2025-01-01" | bb push-to-intervals
 echo "75.1 kg $(date '+%Y-%m-%d')" | bb push-to-intervals
 ```
 
+### Upload to Strava
+
+```bash
+# Complete workflow: fetch and upload weight
+bb weight | bb push-to-strava
+
+# Manual weight entry
+echo "75.1 kg" | bb push-to-strava
+echo "165.5 lbs 2025-01-01" | bb push-to-strava
+
+# Upload with specific date
+echo "75.1 kg $(date '+%Y-%m-%d')" | bb push-to-strava
+```
+
 ### OAuth Management
 
 ```bash
+# Setup Withings OAuth
 bb setup
+
+# Setup Strava OAuth  
+bb setup-strava
 ```
 
 ### SOPS Management
@@ -171,20 +206,26 @@ nix profile install .
 ## Files
 
 **Core Scripts:**
-- `oauth.clj` - OAuth2 authentication flow and token management
-- `get-weight-oauth.clj` - Main script with OAuth integration
-- `get-weight.clj` - Simple script requiring manual token input
+- `src/withings/oauth.clj` - OAuth2 authentication flow and token management
+- `src/withings/api.clj` - Main API integration with OAuth
+- `src/withings/config.clj` - Configuration management
 
 **intervals.icu Integration:**
 - `src/intervals/config.clj` - Configuration management for intervals.icu
 - `src/intervals/api.clj` - API integration for uploading wellness data
 
+**Strava Integration:**
+- `src/strava/config.clj` - Configuration management for Strava
+- `src/strava/api.clj` - API integration for uploading weight data to Strava
+- `src/strava/oauth.clj` - OAuth2 authentication flow for Strava
+
 **Configuration:**
 - `secrets.yaml.example` - Example configuration file with placeholder values
-- `secrets.yaml` - Encrypted secrets file (SOPS) with Withings and intervals.icu credentials (not in git)
+- `secrets.yaml` - Encrypted secrets file (SOPS) with Withings, intervals.icu, and Strava credentials (not in git)
 - `.sops.yaml` - SOPS configuration
-- `bb.edn` - Babashka task definitions including `weight` and `push-to-intervals`
-- `~/.withings-config.json` - OAuth configuration and tokens (auto-created)
+- `bb.edn` - Babashka task definitions including `weight`, `push-to-intervals`, and `push-to-strava`
+- `~/.config/clj-withings/withings.json` - Withings OAuth configuration and tokens (auto-created)
+- `~/.config/clj-withings/strava.json` - Strava OAuth configuration and tokens (auto-created)
 
 **Development:**
 - `flake.nix` - Nix flake for development environment
@@ -208,43 +249,16 @@ nix profile install .
 - ✅ Support for both kg and lbs input
 - ✅ Flexible input formats (piped from `bb weight` or manual entry)
 
-**Security & Development:**
-- ✅ SOPS encryption for secrets
-- ✅ Nix flake for reproducible development
-- ✅ Comprehensive error handling
+**Strava Integration:**
+- ✅ OAuth2 authentication flow
+- ✅ Weight data upload to athlete profile
+- ✅ Automatic token refresh and management
+- ✅ Support for both kg and lbs input
+- ✅ Rate limiting and error handling
 
 ## Token Management
 
 The OAuth system automatically:
 - Refreshes expired tokens (with 5-minute buffer)
-- Stores tokens securely in your home directory
+- Stores tokens securely in `~/.config/clj-withings/` directory
 - Handles token validation and renewal
-
-## Example Output
-
-**Weight fetching:**
-```bash
-$ bb weight
-{:weight 75.11 kg, :date 2025-07-01T10:13:53Z}
-```
-
-**Upload to intervals.icu:**
-```bash
-$ bb weight | bb push-to-intervals
-Weight uploaded successfully
-
-$ echo "75.5 kg" | bb push-to-intervals
-Weight uploaded successfully
-```
-
-## API Endpoints
-
-**Withings API:**
-- Authorization: `https://account.withings.com/oauth2_user/authorize2`
-- Token: `https://wbsapi.withings.net/v2/oauth2`
-- Measurements: `https://wbsapi.withings.net/measure`
-
-**intervals.icu API:**
-- Wellness data upload: `https://intervals.icu/api/v1/athlete/{athlete_id}/wellness-bulk`
-- Authentication: Basic auth with username "API_KEY" and password as API key
-- Documentation: `https://intervals.icu/api-docs.html`

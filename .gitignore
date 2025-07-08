@@ -26,5 +26,13 @@ result-*
 Thumbs.db
 .clj-kondo
 .nrepl-port
-.claude
-.lsp
+
+# Development/Internal files
+.claude/
+.lsp/
+CLAUDE.md
+LLM_CODE_STYLE.md
+PROJECT_SUMMARY.md
+
+# Removed integrations
+src/trainerroad/

@@ -151,14 +151,6 @@
     parsed-data
     {:weight-kg (:weight-kg parsed-data)}))
 
-(defn for-trainerroad
-  "Process parsed weight data for TrainerRoad (weight only)
-   Used in bb.edn: push-to-trainerroad task"
-  [parsed-data]
-  (if (:error parsed-data)
-    parsed-data
-    {:weight-kg (:weight-kg parsed-data)}))
-
 ;; Error message generators
 (defn usage-message-intervals
   "Generate usage message for intervals push command
@@ -179,13 +171,3 @@
    "Example: echo '75.1 kg' | bb push-to-strava"
    "Example: echo '165.5 lbs' | bb push-to-strava"
    "Example: bb weight | bb push-to-strava"])
-
-(defn usage-message-trainerroad
-  "Generate usage message for trainerroad push command
-   Used in bb.edn: push-to-trainerroad task (error handling)"
-  []
-  ["Usage: echo 'WEIGHT UNIT' | bb push-to-trainerroad"
-   "       bb weight | bb push-to-trainerroad"
-   "Example: echo '75.1 kg' | bb push-to-trainerroad"
-   "Example: echo '165.5 lbs' | bb push-to-trainerroad"
-   "Example: bb weight | bb push-to-trainerroad"])
