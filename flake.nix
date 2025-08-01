@@ -30,9 +30,17 @@
           jet # JSON/EDN processor
         ];
 
+        # Build the package
+        clj-withings = pkgs.callPackage ./clj-withings.nix {};
 
       in
       {
+        # Packages
+        packages = {
+          default = clj-withings;
+          clj-withings = clj-withings;
+        };
+
         # Development shell
         devShells.default = pkgs.mkShell {
           buildInputs = devDependencies;

@@ -190,17 +190,36 @@ bb check-sops
 sops secrets.yaml
 ```
 
-### Nix Commands
+## Installation
+
+### Development
+
+For development work, use the development shell:
 
 ```bash
-# Enter development shell
+# Enter development shell with all tools
 nix develop
 
-# Build package
+# Use all bb commands directly
+bb setup
+bb weight
+```
+
+### Package Installation
+
+To build and install the package:
+
+```bash
+# Build the package
 nix build
 
-# Install package
+# Install to your profile
 nix profile install .
+
+# Use the installed command
+clj-withings setup
+clj-withings weight
+clj-withings weight | clj-withings push-to-intervals
 ```
 
 ## Files
