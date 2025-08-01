@@ -17,9 +17,6 @@
         # Development dependencies
         devDependencies = with pkgs; [
           babashka-with-deps
-          sops
-          age
-          gnupg
           jq
           curl
           git
@@ -50,47 +47,48 @@
             echo
             echo "Available tools:"
             echo "  bb                - Babashka (Clojure scripting)"
-            echo "  sops              - Secrets management"
-            echo "  age               - Age encryption"
-            echo "  gnupg             - GPG encryption"
             echo "  clj-kondo         - Clojure linter"
             echo "  jet               - JSON/EDN processor"
             echo
             echo "BB tasks:"
             echo "  bb setup          - Setup OAuth authentication" 
             echo "  bb weight         - Get current weight"
-            echo "  bb check-sops     - Check SOPS configuration"
+            echo "  bb check-secrets  - Check secrets configuration"
             echo "  bb test-token     - Test token validity"
-            echo "  bb push-weight    - Push weight to intervals.icu"
+            echo "  bb push-to-intervals - Push weight to intervals.icu"
+            echo "  bb push-to-strava    - Push weight to Strava"
             echo
             echo "First time setup:"
-            echo "  1. Add your credentials to secrets.yaml"
-            echo "  2. Run: sops -e -i secrets.yaml"
-            echo "  3. Run: bb setup"
-            echo "  4. Run: bb weight"
+            echo "  1. Configure secrets: ~/.config/clj-withings/secrets.json"
+            echo "  2. Run: bb setup"
+            echo "  3. Run: bb weight"
             echo
 
-            # Check if secrets.yaml exists
-            if [ ! -f secrets.yaml ]; then
-              echo "⚠️  secrets.yaml not found. Creating template..."
-              cat > secrets.yaml << 'EOF'
-withings:
-  client_id: "YOUR_CLIENT_ID_HERE"
-  client_secret: "YOUR_CLIENT_SECRET_HERE"
-  redirect_uri: "http://localhost:8080/callback"
-intervals:
-  api_key: "YOUR_INTERVALS_ICU_API_KEY_HERE"
+            # Check if secrets file exists
+            if [ ! -f ~/.config/clj-withings/secrets.json ]; then
+              echo "⚠️  Secrets file not found. Setting up template..."
+              mkdir -p ~/.config/clj-withings
+              cat > ~/.config/clj-withings/secrets.json << 'EOF'
+{
+  "withings": {
+    "client_id": "YOUR_WITHINGS_CLIENT_ID",
+    "client_secret": "YOUR_WITHINGS_CLIENT_SECRET",
+    "redirect_uri": "http://localhost/callback"
+  },
+  "strava": {
+    "client_id": "YOUR_STRAVA_CLIENT_ID",
+    "client_secret": "YOUR_STRAVA_CLIENT_SECRET",
+    "redirect_uri": "http://localhost/callback"
+  },
+  "intervals": {
+    "api_key": "YOUR_INTERVALS_API_KEY",
+    "athlete_id": YOUR_INTERVALS_ATHLETE_ID
+  }
+}
 EOF
-              echo "✅ Created secrets.yaml template"
-              echo "   Edit it with your credentials, then run: sops -e -i secrets.yaml"
-              echo
-            fi
-
-            # Check if .sops.yaml exists
-            if [ ! -f .sops.yaml ]; then
-              echo "⚠️  .sops.yaml not found. Consider setting up encryption."
-              echo "   For Age: age-keygen -o key.txt && export SOPS_AGE_KEY_FILE=./key.txt"
-              echo "   For GPG: gpg --generate-key"
+              chmod 600 ~/.config/clj-withings/secrets.json
+              echo "✅ Created secrets.json template"
+              echo "   Edit ~/.config/clj-withings/secrets.json with your credentials"
               echo
             fi
           '';

@@ -1,7 +1,6 @@
 (ns strava.config
   (:require [cheshire.core :as json]
             [clojure.java.io :as io]
-            [withings.config :as withings-config]
             [babashka.http-client :as http]))
 
 (def config-dir (str (System/getProperty "user.home") "/.config/clj-withings"))
@@ -17,11 +16,16 @@
       (.mkdirs dir))))
 
 (defn get-strava-secrets
-  "Get Strava secrets from encrypted SOPS file
-   Used in bb.edn: check-strava-sops task"
+  "Get Strava secrets from local JSON file"
   []
-  (some-> (withings-config/decrypt-secrets withings-config/secrets-file)
-          :strava))
+  (let [secrets-file (str config-dir "/secrets.json")]
+    (when (.exists (io/file secrets-file))
+      (try
+        (let [secrets (-> secrets-file slurp (json/parse-string true))]
+          (:strava secrets))
+        (catch Exception e
+          (println "Warning: Could not read secrets file:" (.getMessage e))
+          nil)))))
 
 (defn read-strava-config
   "Read Strava configuration from file
@@ -65,10 +69,11 @@
   "Parse token response and extract relevant fields"
   [response]
   (if (= 200 (:status response))
-    (let [body (json/parse-string (:body response) true)]
+    (let [body (json/parse-string (:body response) true)
+          expires-at (:expires_at body)]
       {:access_token (:access_token body)
        :refresh_token (:refresh_token body)
-       :expires_at (* 1000 (:expires_at body))}) ; Convert to milliseconds
+       :expires_at (when expires-at (* 1000 expires-at))}) ; Convert to milliseconds only if present
     {:error (str "Token request failed: " (:status response) " " (:body response))}))
 
 (defn refresh-access-token
@@ -118,8 +123,7 @@
     (get-valid-token config)))
 
 (defn get-strava-credentials
-  "Get Strava credentials from command line args or SOPS secrets
-   Used in bb.edn: setup-strava task"
+  "Get Strava credentials from command line args or local secrets file"
   [{:keys [client-id client-secret redirect-uri]}]
   (or
    (when (and client-id client-secret)

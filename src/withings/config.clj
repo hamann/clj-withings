@@ -1,12 +1,9 @@
 (ns withings.config
-  (:require [babashka.process :as process]
-            [cheshire.core :as json]
-            [clj-yaml.core :as yaml]
+  (:require [cheshire.core :as json]
             [clojure.java.io :as io]))
 
 (def config-dir (str (System/getProperty "user.home") "/.config/clj-withings"))
 (def config-file (str config-dir "/withings.json"))
-(def secrets-file "secrets.yaml")
 
 (defn ensure-config-dir
   "Ensure the configuration directory exists"
@@ -15,27 +12,39 @@
     (when-not (.exists dir)
       (.mkdirs dir))))
 
-(defn decrypt-secrets
-  "Decrypt secrets file using SOPS"
-  [secrets-file]
-  (try
-    (let [result (process/shell {:out :string
-                                 :err :string}
-                                "sops" "-d" secrets-file)]
-      (if (zero? (:exit result))
-        (yaml/parse-string (:out result))
-        (throw (ex-info "SOPS decryption failed" {:error (:err result)}))))
-    (catch Exception e
-      (println "Warning: Could not decrypt secrets:" (.getMessage e))
-      nil)))
+(defn read-secrets
+  "Read secrets from local JSON file"
+  []
+  (let [secrets-file (str config-dir "/secrets.json")]
+    (when (.exists (io/file secrets-file))
+      (try
+        (-> secrets-file
+            slurp
+            (json/parse-string true))
+        (catch Exception e
+          (println "Warning: Could not read secrets file:" (.getMessage e))
+          nil)))))
+
+(defn write-secrets
+  "Write secrets to local JSON file"
+  [secrets]
+  (let [secrets-file (str config-dir "/secrets.json")]
+    (try
+      (ensure-config-dir)
+      (spit secrets-file (json/generate-string secrets {:pretty true}))
+      ;; Set restrictive permissions for basic security
+      (.setReadable (io/file secrets-file) false false)
+      (.setReadable (io/file secrets-file) true true)
+      (.setWritable (io/file secrets-file) false false)
+      (.setWritable (io/file secrets-file) true true)
+      (println "Secrets saved to" secrets-file)
+      (catch Exception e
+        (println "Error saving secrets:" (.getMessage e))))))
 
 (defn get-withings-secrets
-  "Get Withings configuration from encrypted secrets
-   Used in bb.edn: check-sops task"
+  "Get Withings configuration from local secrets file"
   []
-  (when (.exists (io/file secrets-file))
-    (some-> (decrypt-secrets secrets-file)
-            :withings)))
+  (some-> (read-secrets) :withings))
 
 (defn read-config
   "Read configuration from file
@@ -62,8 +71,7 @@
       (println "Error saving config:" (.getMessage e)))))
 
 (defn get-credentials
-  "Get credentials from command line args or SOPS secrets
-   Used in bb.edn: setup task"
+  "Get credentials from command line args or local secrets file"
   [{:keys [client-id client-secret redirect-uri]}]
   (or
    (when (and client-id client-secret)

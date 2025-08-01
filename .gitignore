@@ -1,9 +1,6 @@
-# Secrets and keys
-key.txt
-*.key
-secrets.yaml
-secrets.yaml.backup
-.sops.yaml
+# Local secrets and configuration
+secrets.json
+~/.config/clj-withings/secrets.json
 
 # OAuth tokens
 .withings-config.json

@@ -1,6 +1,5 @@
 {:paths ["src" "test"]
- :deps {cheshire/cheshire {:mvn/version "5.12.0"}
-        clj-commons/clj-yaml {:mvn/version "1.0.27"}}
+ :deps {cheshire/cheshire {:mvn/version "5.12.0"}}
 
  :tasks
  {:requires ([babashka.cli :as cli]
@@ -40,17 +39,17 @@
                      (println)
                      (println "Examples:")
                      (println "  bb setup --client-id YOUR_ID --client-secret YOUR_SECRET")
-                     (println "  bb setup                 # Use SOPS secrets"))
+                     (println "  bb setup                 # Use local secrets file"))
                    (if-let [creds (config/get-credentials opts)]
                      (do
                        (when-not (and (:client-id opts) (:client-secret opts))
-                         (println "Using credentials from SOPS secrets file"))
+                         (println "Using credentials from local secrets file"))
                        (oauth/setup-oauth (:client-id creds) (:client-secret creds) (:redirect-uri creds)))
                      (do
                        (println "Error: Client credentials required")
                        (println "Either:")
                        (println "  1. Provide --client-id and --client-secret")
-                       (println "  2. Configure secrets.yaml with SOPS and run: bb setup")))))}
+                       (println "  2. Configure ~/.config/clj-withings/secrets.json and run: bb setup")))))}
 
   weight {:doc "Get current weight"
           :task (let [result (api/get-weight-with-auth)]
@@ -65,19 +64,23 @@
                       (if config
                         (let [token (oauth/get-valid-token config)]
                           (if token
-                            (println "Token is valid, expires at:" (java.time.Instant/ofEpochMilli (:expires-at token)))
+                            (if (:expires-at token)
+                              (println "Token is valid, expires at:" (java.time.Instant/ofEpochMilli (:expires-at token)))
+                              (println "Token is valid (no expiration)"))
                             (println "No valid token available")))
                         (println "No configuration found. Run setup first.")))}
 
-  check-sops {:doc "Check SOPS configuration"
-              :task (let [secrets (config/get-withings-secrets)]
-                      (if secrets
-                        (do
-                          (println "SOPS configuration is working")
-                          (println "Found client_id:" (boolean (:client_id secrets)))
-                          (println "Found client_secret:" (boolean (:client_secret secrets)))
-                          (println "Found redirect_uri:" (boolean (:redirect_uri secrets))))
-                        (println "SOPS configuration not found or not working")))}
+  check-secrets {:doc "Check local secrets configuration"
+                 :task (let [secrets (config/get-withings-secrets)]
+                         (if secrets
+                           (do
+                             (println "Local secrets configuration is working")
+                             (println "Found client_id:" (boolean (:client_id secrets)))
+                             (println "Found client_secret:" (boolean (:client_secret secrets)))
+                             (println "Found redirect_uri:" (boolean (:redirect_uri secrets))))
+                           (do
+                             (println "Local secrets configuration not found")
+                             (println "Please ensure ~/.config/clj-withings/secrets.json exists and contains withings credentials"))))}
 
   push-to-intervals {:doc "Push weight to intervals.icu from stdin (accepts 'bb weight' output or 'WEIGHT UNIT [DATE]' format)"
                      :task (let [input (read-line)]
@@ -132,36 +135,40 @@
                             (println)
                             (println "Examples:")
                             (println "  bb setup-strava --client-id YOUR_ID --client-secret YOUR_SECRET")
-                            (println "  bb setup-strava          # Use SOPS secrets"))
+                            (println "  bb setup-strava          # Use local secrets file"))
                           (if-let [creds (strava-config/get-strava-credentials opts)]
                             (do
                               (when-not (and (:client-id opts) (:client-secret opts))
-                                (println "Using credentials from SOPS secrets file"))
+                                (println "Using credentials from local secrets file"))
                               (strava-oauth/setup-oauth (:client-id creds) (:client-secret creds) (:redirect-uri creds)))
                             (do
                               (println "Error: Client credentials required")
                               (println "Either:")
                               (println "  1. Provide --client-id and --client-secret")
-                              (println "  2. Configure secrets.yaml with SOPS and run: bb setup-strava")))))}
+                              (println "  2. Configure ~/.config/clj-withings/secrets.json and run: bb setup-strava")))))}
 
   test-strava-token {:doc "Test current Strava token validity"
                      :task (let [config (strava-config/read-strava-config)]
                              (if config
                                (let [token (strava-config/get-valid-token config)]
                                  (if token
-                                   (println "Strava token is valid, expires at:" (java.time.Instant/ofEpochMilli (:expires-at token)))
+                                   (if (:expires_at token)
+                                     (println "Strava token is valid, expires at:" (java.time.Instant/ofEpochMilli (:expires_at token)))
+                                     (println "Strava token is valid (no expiration)"))
                                    (println "No valid Strava token available")))
                                (println "No Strava configuration found. Run setup-strava first.")))}
 
-  check-strava-sops {:doc "Check Strava SOPS configuration"
-                     :task (let [secrets (strava-config/get-strava-secrets)]
-                             (if secrets
-                               (do
-                                 (println "Strava SOPS configuration is working")
-                                 (println "Found client_id:" (boolean (:client_id secrets)))
-                                 (println "Found client_secret:" (boolean (:client_secret secrets)))
-                                 (println "Found redirect_uri:" (boolean (:redirect_uri secrets))))
-                               (println "Strava SOPS configuration not found or not working")))}
+  check-strava-secrets {:doc "Check Strava local secrets configuration"
+                        :task (let [secrets (strava-config/get-strava-secrets)]
+                                (if secrets
+                                  (do
+                                    (println "Strava local secrets configuration is working")
+                                    (println "Found client_id:" (boolean (:client_id secrets)))
+                                    (println "Found client_secret:" (boolean (:client_secret secrets)))
+                                    (println "Found redirect_uri:" (boolean (:redirect_uri secrets))))
+                                  (do
+                                    (println "Strava local secrets configuration not found")
+                                    (println "Please ensure ~/.config/clj-withings/secrets.json exists and contains strava credentials"))))}
 
   push-to-strava {:doc "Push weight to Strava from stdin (accepts 'bb weight' output or 'WEIGHT UNIT' format)"
                   :task (let [input (read-line)]

@@ -68,29 +68,29 @@
      (+ (System/currentTimeMillis) token-buffer-ms)))
 
 (defn get-valid-token
-  "Get a valid access token, refreshing if necessary
-   Used in bb.edn: test-token task"
+  "Get a valid access token, refreshing if necessary"
   [config]
   (let [token-data (:token config)]
     (if (and token-data (not (token-expired? token-data)))
       token-data
       (when-let [refresh-token (:refresh-token token-data)]
         (println "Token expired, refreshing...")
-        (let [refreshed (refresh-access-token
-                         (:client-id config)
-                         (:client-secret config)
-                         refresh-token)]
-          (if (:error refreshed)
-            (do
-              (println "Token refresh failed:" (:error refreshed))
-              nil)
-            (do
-              (config/write-config (assoc config :token refreshed))
-              refreshed)))))))
+        ;; Get credentials from secrets file, not from config
+        (when-let [secrets (config/get-withings-secrets)]
+          (let [refreshed (refresh-access-token
+                           (:client_id secrets)
+                           (:client_secret secrets)
+                           refresh-token)]
+            (if (:error refreshed)
+              (do
+                (println "Token refresh failed:" (:error refreshed))
+                nil)
+              (do
+                (config/write-config (assoc config :token refreshed))
+                refreshed))))))))
 
 (defn setup-oauth
-  "Interactive OAuth setup
-   Used in bb.edn: setup task"
+  "Interactive OAuth setup"
   [client-id client-secret redirect-uri]
   (let [auth-url (generate-auth-url client-id redirect-uri)]
     (println "Please visit the following URL to authorize the application:")
@@ -104,9 +104,6 @@
         (let [token-result (exchange-code-for-token client-id client-secret code redirect-uri)]
           (if (:error token-result)
             (println "Error:" (:error token-result))
-            (let [config {:client-id client-id
-                          :client-secret client-secret
-                          :redirect-uri redirect-uri
-                          :token token-result}]
+            (let [config {:token token-result}] ; Only store the token, not credentials
               (config/write-config config)
               (println "OAuth setup complete!"))))))))

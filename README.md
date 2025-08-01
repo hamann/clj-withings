@@ -24,28 +24,34 @@ Babashka scripts for fetching weight data from Withings API with OAuth2 authenti
    direnv allow
    ```
 
-3. **Setup encryption** (choose one):
+3. **Configure secrets**:
    ```bash
-   # Age encryption (simpler)
-   age-keygen -o key.txt
-   export SOPS_AGE_KEY_FILE=./key.txt
-   
-   # GPG encryption (more secure)
-   gpg --generate-key
-   # Update .sops.yaml with your fingerprint
+   # Create secrets file
+   mkdir -p ~/.config/clj-withings
+   nano ~/.config/clj-withings/secrets.json
    ```
 
-4. **Configure secrets**:
-   ```bash
-   # Copy example file and edit with your credentials
-   cp secrets.yaml.example secrets.yaml
-   nano secrets.yaml
-   
-   # Encrypt
-   sops -e -i secrets.yaml
+   Example `secrets.json` content:
+   ```json
+   {
+     "withings": {
+       "client_id": "YOUR_WITHINGS_CLIENT_ID",
+       "client_secret": "YOUR_WITHINGS_CLIENT_SECRET",
+       "redirect_uri": "http://localhost/callback"
+     },
+     "strava": {
+       "client_id": "YOUR_STRAVA_CLIENT_ID",
+       "client_secret": "YOUR_STRAVA_CLIENT_SECRET",
+       "redirect_uri": "http://localhost/callback"
+     },
+     "intervals": {
+       "api_key": "YOUR_INTERVALS_API_KEY",
+       "athlete_id": YOUR_INTERVALS_ATHLETE_ID
+     }
+   }
    ```
 
-5. **Setup OAuth**:
+4. **Setup OAuth**:
    ```bash
    # Setup Withings OAuth
    bb setup
@@ -54,12 +60,12 @@ Babashka scripts for fetching weight data from Withings API with OAuth2 authenti
    bb setup-strava
    ```
 
-6. **Get your weight**:
+5. **Get your weight**:
    ```bash
    bb weight
    ```
 
-7. **Upload to intervals.icu**:
+6. **Upload to intervals.icu**:
    ```bash
    # Complete workflow: fetch and upload
    bb weight | bb push-to-intervals
@@ -69,59 +75,61 @@ Babashka scripts for fetching weight data from Withings API with OAuth2 authenti
 
 ### Option 2: Manual Setup
 
-1. **Install SOPS** (optional but recommended):
-   ```bash
-   # macOS
-   brew install sops
-   
-   # Or download from: https://github.com/mozilla/sops/releases
-   ```
-
-2. **Register your application** at https://developer.withings.com/
+1. **Register your application** at https://developer.withings.com/
    - Create a new application
    - Note down your Client ID and Client Secret
    - Set redirect URI to `http://localhost/callback`
 
-3. **Get intervals.icu API key**:
+2. **Get intervals.icu API key**:
    - Go to your intervals.icu account settings
    - Look for "Developer Settings" near the bottom
    - Generate an API key with wellness data write permissions
    - Note your athlete ID from your profile URL
 
-4. **Get Strava API credentials**:
+3. **Get Strava API credentials**:
    - Register your application at https://developers.strava.com/
    - Create a new API application
    - Note down your Client ID and Client Secret
    - Set authorization callback domain to `localhost`
 
-5. **Configure secrets with SOPS** (recommended):
+4. **Configure secrets**:
    ```bash
-   # Copy example file and edit with your credentials
-   cp secrets.yaml.example secrets.yaml
-   nano secrets.yaml
+   # Create config directory
+   mkdir -p ~/.config/clj-withings
    
-   # Initialize SOPS encryption (choose one method):
-   # For Age encryption:
-   age-keygen -o key.txt
-   export SOPS_AGE_KEY_FILE=key.txt
+   # Create secrets file
+   cat > ~/.config/clj-withings/secrets.json << 'EOF'
+   {
+     "withings": {
+       "client_id": "YOUR_WITHINGS_CLIENT_ID",
+       "client_secret": "YOUR_WITHINGS_CLIENT_SECRET",
+       "redirect_uri": "http://localhost/callback"
+     },
+     "strava": {
+       "client_id": "YOUR_STRAVA_CLIENT_ID", 
+       "client_secret": "YOUR_STRAVA_CLIENT_SECRET",
+       "redirect_uri": "http://localhost/callback"
+     },
+     "intervals": {
+       "api_key": "YOUR_INTERVALS_API_KEY",
+       "athlete_id": YOUR_INTERVALS_ATHLETE_ID
+     }
+   }
+   EOF
    
-   # For GPG encryption:
-   gpg --generate-key
-   # Update .sops.yaml with your PGP fingerprint
-   
-   # Encrypt the secrets file
-   sops -e -i secrets.yaml
+   # Set restrictive permissions
+   chmod 600 ~/.config/clj-withings/secrets.json
    ```
 
-6. **Configure OAuth2 authentication**:
+5. **Configure OAuth2 authentication**:
    ```bash
-   # Setup Withings OAuth using SOPS secrets (recommended)
+   # Setup Withings OAuth using local secrets (recommended)
    bb setup
    
    # Or provide Withings credentials directly
    bb setup --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
    
-   # Setup Strava OAuth using SOPS secrets (recommended)
+   # Setup Strava OAuth using local secrets (recommended)
    bb setup-strava
    
    # Or provide Strava credentials directly
@@ -178,16 +186,10 @@ bb setup
 
 # Setup Strava OAuth  
 bb setup-strava
-```
 
-### SOPS Management
-
-```bash
-# Check if SOPS is available
-bb check-sops
-
-# Edit encrypted secrets
-sops secrets.yaml
+# Check secrets configuration
+bb check-secrets
+bb check-strava-secrets
 ```
 
 ## Installation
@@ -239,9 +241,7 @@ clj-withings weight | clj-withings push-to-intervals
 - `src/strava/oauth.clj` - OAuth2 authentication flow for Strava
 
 **Configuration:**
-- `secrets.yaml.example` - Example configuration file with placeholder values
-- `secrets.yaml` - Encrypted secrets file (SOPS) with Withings, intervals.icu, and Strava credentials (not in git)
-- `.sops.yaml` - SOPS configuration
+- `~/.config/clj-withings/secrets.json` - Local secrets file with API credentials (not in git)
 - `bb.edn` - Babashka task definitions including `weight`, `push-to-intervals`, and `push-to-strava`
 - `~/.config/clj-withings/withings.json` - Withings OAuth configuration and tokens (auto-created)
 - `~/.config/clj-withings/strava.json` - Strava OAuth configuration and tokens (auto-created)

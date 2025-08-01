@@ -1,4 +1,4 @@
-{ lib, stdenv, babashka, sops, age, makeWrapper }:
+{ lib, stdenv, babashka, makeWrapper }:
 
 stdenv.mkDerivation rec {
   pname = "clj-withings";
@@ -8,7 +8,7 @@ stdenv.mkDerivation rec {
 
   nativeBuildInputs = [ makeWrapper ];
 
-  buildInputs = [ babashka sops age ];
+  buildInputs = [ babashka ];
 
   dontBuild = true;
 
@@ -24,8 +24,7 @@ stdenv.mkDerivation rec {
 
     # Create wrapper script
     makeWrapper ${babashka}/bin/bb $out/bin/clj-withings \
-      --chdir $out/share/clj-withings \
-      --prefix PATH : ${lib.makeBinPath [ sops age ]}
+      --chdir $out/share/clj-withings
 
     runHook postInstall
   '';
